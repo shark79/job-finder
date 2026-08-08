@@ -167,6 +167,81 @@ function loadApplied(){ try { return JSON.parse(localStorage.getItem(STORE_KEY) 
 function saveApplied(obj){ localStorage.setItem(STORE_KEY, JSON.stringify(obj)); }
 let applied = loadApplied();
 
+// Only http(s) and file: URLs are ever set as an href — anything else (e.g. a javascript: URI
+// smuggled in through a scraped company/job field) is rejected and the link renders inert.
+function safeHref(url){
+  try {
+    const u = new URL(url, location.href);
+    if (["http:", "https:", "file:"].includes(u.protocol)) return u.href;
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+// Builds each row via DOM APIs with textContent, never innerHTML, so company/role/location/note
+// text pulled from scraped job postings can never be interpreted as markup.
+function buildRow(d, tier){
+  const tr = document.createElement("tr");
+  tr.className = tier;
+  const isApplied = !!applied[d.url];
+
+  const tdCompany = document.createElement("td");
+  tdCompany.className = "company";
+  tdCompany.textContent = d.company;
+
+  const tdRole = document.createElement("td");
+  tdRole.className = "role";
+  const roleLink = document.createElement("a");
+  const roleHref = safeHref(d.url);
+  roleLink.href = roleHref || "#";
+  if (!roleHref) roleLink.setAttribute("aria-disabled", "true");
+  roleLink.target = "_blank";
+  roleLink.rel = "noopener";
+  roleLink.dataset.url = d.url;
+  roleLink.textContent = d.role;
+  const locSpan = document.createElement("span");
+  locSpan.className = "loc";
+  locSpan.textContent = d.loc + (d.note ? " · " + d.note : "");
+  tdRole.append(roleLink, locSpan);
+
+  const tdMatch = document.createElement("td");
+  tdMatch.className = "match";
+  const bar = document.createElement("span");
+  bar.className = "match-bar";
+  const barFill = document.createElement("span");
+  barFill.style.width = Math.max(0, Math.min(100, Number(d.match) || 0)) + "%";
+  bar.appendChild(barFill);
+  tdMatch.append(bar, document.createTextNode(d.match + "%"));
+
+  const tdResume = document.createElement("td");
+  tdResume.className = "resume";
+  if (d.resumeLink) {
+    const resumeHref = safeHref("file://" + encodeURI(d.resumeLink));
+    const link = document.createElement("a");
+    link.className = "code";
+    link.href = resumeHref || "#";
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = d.resumeCode || "Resume";
+    tdResume.appendChild(link);
+  } else {
+    const note = document.createElement("span");
+    note.className = "anchor-note";
+    note.textContent = "Use Anchor Resume";
+    tdResume.appendChild(note);
+  }
+
+  const tdStatus = document.createElement("td");
+  const chip = document.createElement("button");
+  chip.className = "status-chip";
+  chip.dataset.applied = String(isApplied);
+  chip.dataset.url = d.url;
+  chip.textContent = isApplied ? "Applied" : "Open";
+  tdStatus.appendChild(chip);
+
+  tr.append(tdCompany, tdRole, tdMatch, tdResume, tdStatus);
+  return tr;
+}
+
 function render(){
   const groups = { high: [], avg: [], low: [] };
   DATA.forEach(d => groups[tierOf(d.match)].push(d));
@@ -206,22 +281,7 @@ function render(){
       </div>
     `;
     const tbody = section.querySelector("tbody");
-    groups[t].forEach(d => {
-      const tr = document.createElement("tr");
-      tr.className = t;
-      const isApplied = !!applied[d.url];
-      const resumeCell = d.resumeLink
-        ? `<a class="code" href="file://${encodeURI(d.resumeLink)}" target="_blank" rel="noopener">${d.resumeCode || "Resume"}</a>`
-        : `<span class="anchor-note">Use Anchor Resume</span>`;
-      tr.innerHTML = `
-        <td class="company">${d.company}</td>
-        <td class="role"><a href="${d.url}" target="_blank" rel="noopener" data-url="${d.url}">${d.role}</a><span class="loc">${d.loc}${d.note ? " · " + d.note : ""}</span></td>
-        <td class="match"><span class="match-bar"><span style="width:${d.match}%"></span></span>${d.match}%</td>
-        <td class="resume">${resumeCell}</td>
-        <td><button class="status-chip" data-applied="${isApplied}" data-url="${d.url}">${isApplied ? "Applied" : "Open"}</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
+    groups[t].forEach(d => tbody.appendChild(buildRow(d, t)));
     tiersEl.appendChild(section);
   });
 
