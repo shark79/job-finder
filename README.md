@@ -64,7 +64,7 @@ In order, before you start:
 
 ## Adding the JF-assistant subagent
 
-A subagent is just a text file with instructions in it, Claude Code reads it and follows those instructions when you invoke it. `JF-assistant.md` in this repo already has the whole pipeline written out, you don't need to write anything yourself.
+A subagent is just a text file with instructions in it, Claude Code reads it and follows those instructions when you invoke it. `JF-assistant.md` in this repo has the whole pipeline written out, you don't need to write the instructions yourself, just point it at a folder of your own (next section).
 
 Baby steps:
 
@@ -75,11 +75,62 @@ Baby steps:
 
 2. Copy `JF-assistant.md` from this repo into that folder. Either clone the whole repo first and copy the file, or just download that one file directly and save it there as `~/.claude/agents/JF-assistant.md`.
 
-3. That's it, no editing needed. Restart Claude Code (step 6 above already covers this if you're doing setup in order).
+3. Restart Claude Code (step 6 above already covers this if you're doing setup in order).
 
 4. Confirm it's there by asking Claude Code something like "do you have a JF-assistant subagent available?" or just start using it directly, "use JF-assistant to find me jobs."
 
 If you ever want it available in one specific project only instead of everywhere, put the copy in that project's own `.claude/agents/` folder instead of your home directory's.
+
+Copying the file is step one. The next section covers the one-time setup that makes it actually run.
+
+## Your daily flow: "new jobs for today" — what to set up, in plain terms
+
+Here's the whole idea, no jargon: you say "new jobs for today," and it finds real job postings
+that match what you're looking for, tailors a resume for the best matches, and builds you a
+webpage listing everything with click-to-open links. Say it again tomorrow, or even later the same
+day, it never shows you the same listing twice.
+
+This example uses AI engineering roles at H1B-sponsoring companies, since that's what this repo
+ships pre-configured for. But say hypothetically you were looking for gardening jobs instead — the
+mechanism doesn't care what role or industry you search for, only the starter company list
+(`seed_companies.example.json`) is AI/H1B-specific, and that's the one file you'd swap.
+
+**Everything you need to set up, once:**
+
+1. **Pick a folder for this.** Anywhere on your computer. One example: `~/JobSearch`. This becomes
+   your workspace, every resume, every daily page, everything the tool builds lives here from now on.
+
+2. **Put your resume in that folder, as a Word file (`.docx`), not a PDF.** The tool edits the
+   Word file and converts it to PDF at the end, it can't start from a PDF.
+
+3. **Copy two files from this repo's `templates/` folder into your workspace folder:**
+   - `tracker-template.html` — copy as-is, no editing needed, it's the shell your daily job page
+     gets built from.
+   - `resume-tailoring-spec-template.md` — this one's optional. Open it, fill in your own resume
+     details and rules, save it in your workspace as `resume-tailoring-spec.md`. Skip this
+     entirely and the tool falls back to a sensible generic set of rules instead — it still
+     works, just less finely tuned to how you specifically write.
+
+4. **Make sure `JF-assistant.md` is installed** (previous section).
+
+5. **Restart Claude Code.**
+
+6. **Say "new jobs for today."** First time, it asks a few questions in plain English — your name,
+   where your resume file is, what job title you want, what region — and remembers your answers
+   after that.
+
+7. **Open the page it builds you.** It'll tell you the file path. Every listing is ranked by how
+   well it matches your resume, with a link straight to a resume already tailored for your best
+   matches.
+
+**Checklist, all in one place:**
+
+- [ ] A workspace folder, picked once
+- [ ] Your resume, as `.docx`
+- [ ] `tracker-template.html`, copied in as-is
+- [ ] `resume-tailoring-spec.md`, optional — your own rules, or skip for the generic fallback
+- [ ] A seed company list — the bundled example works, or swap in your own for a different role/region
+- [ ] Target role and region — just answered in plain English on first run, no file editing
 
 ## Folder structure
 
@@ -87,6 +138,10 @@ If you ever want it available in one specific project only instead of everywhere
 job-finder/
   README.md
   JF-assistant.md              subagent that runs the whole pipeline end to end
+
+  templates/                    copy these into your own workspace folder, see setup above
+    tracker-template.html       the daily job-tracker page's shell, generic, copy as-is
+    resume-tailoring-spec-template.md   fill in your own resume rules, or skip for the fallback
 
   mcp-job-pipeline-node/        the MCP server to actually use, published to npm
     index.js                    registers all the tools with Claude Code
